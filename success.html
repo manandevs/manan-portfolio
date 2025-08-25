@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Success!</title>
+    <link rel="icon" href="./images/icons/logo-success.svg" type="image/svg+xml" />
+    <!-- Google Fonts for the button (already present) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            /* MODIFIED: Matched portfolio background color */
+            font-family: 'Courier New', monospace;
+            background: #050508;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* MODIFIED: Matched portfolio background color */
+            background: #050508;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            /* The accent color #00a8ff already matches the portfolio */
+            border: 2px solid #00a8ff;
+            color: #00a8ff;
+            width: 50px;
+            height: 50px;
+            border-radius: 9999px;
+            font-weight: bold;
+            text-decoration: none;
+            overflow: hidden;
+            transition: color 0.3s ease-in-out;
+            z-index: 99;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            /* MODIFIED: Matched portfolio background color for text on hover */
+            color: #050508;
+        }
+
+        .back-button .icon {
+            position: relative;
+            z-index: 10;
+        }
+
+        .back-button .fill {
+            position: absolute;
+            inset: 0;
+            background-color: #00a8ff;
+            transform-origin: bottom;
+            transform: scaleY(0);
+            transition: transform 0.3s ease-in-out;
+            z-index: 1;
+        }
+
+        .back-button:hover .fill {
+            transform: scaleY(1);
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- The button links back to your portfolio's hero section -->
+        <a href="index.html#hero" class="back-button" aria-label="Go back to home page">
+            <span class="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </span>
+            <span class="fill"></span>
+        </a>
+        <canvas id="particleCanvas" aria-label="Interactive particle effect with a success message.">
+        </canvas>
+
+        <!-- REMOVED: Unstyled placeholder div -->
+    </div>
+
+    <script>
+        class ParticleSystem {
+            constructor() {
+                this.canvas = document.getElementById('particleCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.mousePosition = { x: 0, y: 0 };
+                this.isTouching = false;
+                this.isMobile = window.innerWidth < 768;
+                this.textImageData = null;
+                this.animationFrameId = null;
+                this.typingStartTime = 0;
+                this.typingSpeed = 50;
+                this.line1 = "Transmission Received.";
+                this.line2 = "I will be in touch shortly.";
+                this.currentLine1Index = 0;
+                this.currentLine2Index = 0;
+                this.isLine1Done = false;
+                this.isTypingComplete = false;
+
+                this.init();
+                this.setupEventListeners();
+            }
+
+            init() {
+                this.updateCanvasSize();
+                this.createTextImage();
+                this.createInitialParticles();
+                this.typingStartTime = Date.now() + 1000;
+                this.animate();
+            }
+
+            updateCanvasSize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.isMobile = window.innerWidth < 768;
+            }
+
+            createTextImage() {
+                // MODIFIED: Matched portfolio's main text color
+                this.ctx.fillStyle = '#eaeaea';
+                this.ctx.save();
+                const textHeight = this.isMobile ? 60 : 120;
+                const urlParams = new URLSearchParams(window.location.search);
+                const userName = urlParams.get('name');
+                const mainText = userName ? `THANK YOU, ${userName.toUpperCase()}` : "SUCCESS";
+                this.ctx.font = `bold ${textHeight}px sans-serif`;
+
+                let fontSize = textHeight;
+                while (this.ctx.measureText(mainText).width > this.canvas.width * 0.9) {
+                    fontSize--;
+                    this.ctx.font = `bold ${fontSize}px sans-serif`;
+                }
+
+                const textMetrics = this.ctx.measureText(mainText);
+                const textWidth = textMetrics.width;
+                this.ctx.translate(this.canvas.width / 2 - textWidth / 2, this.canvas.height / 2);
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(mainText, 0, 0);
+                this.ctx.restore();
+                this.textImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            createParticle() {
+                if (!this.textImageData) return null;
+                const data = this.textImageData.data;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    const x = Math.floor(Math.random() * this.canvas.width);
+                    const y = Math.floor(Math.random() * this.canvas.height);
+                    if (data[(y * this.canvas.width + x) * 4 + 3] > 128) {
+                        return {
+                            x,
+                            y,
+                            baseX: x,
+                            baseY: y,
+                            size: Math.random() * 1 + 0.5,
+                            // MODIFIED: Matched portfolio's main text color
+                            color: '#eaeaea',
+                            // MODIFIED: Matched portfolio's accent color
+                            scatteredColor: '#00a8ff',
+                            life: Math.random() * 100 + 50
+                        };
+                    }
+                }
+                return null;
+            }
+
+            createInitialParticles() {
+                const baseParticleCount = 7000;
+                const particleCount = Math.floor(baseParticleCount * Math.sqrt((this.canvas.width * this.canvas.height) / (1920 * 1080)));
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = this.createParticle();
+                    if (particle) this.particles.push(particle);
+                }
+            }
+
+            drawAnimatedText() {
+                if (Date.now() < this.typingStartTime) return;
+                const elapsedTime = Date.now() - this.typingStartTime;
+                this.ctx.font = '14px "Courier New", monospace';
+                this.ctx.textAlign = 'center';
+                // MODIFIED: Matched portfolio's secondary and primary text colors
+                const finalColor = '#888';
+                const typingColor = '#eaeaea';
+                if (!this.isLine1Done) {
+                    const charsToShow = Math.floor(elapsedTime / this.typingSpeed);
+                    this.currentLine1Index = Math.min(charsToShow, this.line1.length);
+                }
+                const visibleLine1 = this.line1.substring(0, this.currentLine1Index);
+                this.ctx.fillStyle = this.isTypingComplete ? finalColor : typingColor;
+                this.ctx.fillText(visibleLine1, this.canvas.width / 2, this.canvas.height - 50);
+                if (this.currentLine1Index >= this.line1.length) { this.isLine1Done = true; }
+                if (this.isLine1Done) {
+                    const line2Delay = 200;
+                    const line1Duration = this.line1.length * this.typingSpeed;
+                    const line2ElapsedTime = elapsedTime - line1Duration - line2Delay;
+                    if (line2ElapsedTime > 0) {
+                        const charsToShow = Math.floor(line2ElapsedTime / this.typingSpeed);
+                        this.currentLine2Index = Math.min(charsToShow, this.line2.length);
+                    }
+                }
+                const visibleLine2 = this.line2.substring(0, this.currentLine2Index);
+                this.ctx.fillText(visibleLine2, this.canvas.width / 2, this.canvas.height - 30);
+                if (this.isLine1Done && this.currentLine2Index >= this.line2.length) { this.isTypingComplete = true; }
+                if (!this.isTypingComplete) {
+                    if (Math.floor(Date.now() / 500) % 2) {
+                        this.ctx.fillStyle = typingColor;
+                        let cursorX, cursorY;
+                        if (!this.isLine1Done) {
+                            cursorX = this.canvas.width / 2 + this.ctx.measureText(visibleLine1).width / 2 + 2;
+                            cursorY = this.canvas.height - 58;
+                        } else {
+                            cursorX = this.canvas.width / 2 + this.ctx.measureText(visibleLine2).width / 2 + 2;
+                            cursorY = this.canvas.height - 38;
+                        }
+                        this.ctx.fillRect(cursorX, cursorY, 8, 14);
+                    }
+                }
+            }
+
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                // MODIFIED: Matched portfolio background color for canvas clear
+                this.ctx.fillStyle = '#050508';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                const { x: mouseX, y: mouseY } = this.mousePosition;
+                const maxDistance = 240;
+                for (let i = 0; i < this.particles.length; i++) {
+                    const p = this.particles[i];
+                    const dx = mouseX - p.x;
+                    const dy = mouseY - p.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < maxDistance && (this.isTouching || !('ontouchstart' in window))) {
+                        const force = (maxDistance - distance) / maxDistance;
+                        const angle = Math.atan2(dy, dx);
+                        const moveX = Math.cos(angle) * force * 60;
+                        const moveY = Math.sin(angle) * force * 60;
+                        p.x = p.baseX - moveX;
+                        p.y = p.baseY - moveY;
+                        this.ctx.fillStyle = p.scatteredColor;
+                    } else {
+                        p.x += (p.baseX - p.x) * 0.1;
+                        p.y += (p.baseY - p.y) * 0.1;
+                        // MODIFIED: Matched portfolio's main text color
+                        this.ctx.fillStyle = p.color;
+                    }
+                    this.ctx.fillRect(p.x, p.y, p.size, p.size);
+                    p.life--;
+                    if (p.life <= 0) {
+                        const newParticle = this.createParticle();
+                        if (newParticle) { this.particles[i] = newParticle; } else { this.particles.splice(i, 1); i--; }
+                    }
+                }
+                const baseParticleCount = 7000;
+                const targetParticleCount = Math.floor(baseParticleCount * Math.sqrt((this.canvas.width * this.canvas.height) / (1920 * 1080)));
+                while (this.particles.length < targetParticleCount) {
+                    const newParticle = this.createParticle();
+                    if (newParticle) this.particles.push(newParticle);
+                }
+                this.drawAnimatedText();
+                this.animationFrameId = requestAnimationFrame(() => this.animate());
+            }
+
+            setupEventListeners() {
+                const handleResize = () => { this.updateCanvasSize(); this.createTextImage(); this.particles = []; this.createInitialParticles(); };
+                const handleMove = (x, y) => { this.mousePosition = { x, y }; };
+                const handleMouseMove = (e) => { handleMove(e.clientX, e.clientY); };
+                const handleTouchMove = (e) => { if (e.touches.length > 0) { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); } };
+                const handleTouchStart = () => { this.isTouching = true; };
+                const handleTouchEnd = () => { this.isTouching = false; this.mousePosition = { x: 0, y: 0 }; };
+                const handleMouseLeave = () => { if (!('ontouchstart' in window)) { this.mousePosition = { x: 0, y: 0 }; } };
+                window.addEventListener('resize', handleResize);
+                this.canvas.addEventListener('mousemove', handleMouseMove);
+                this.canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+                this.canvas.addEventListener('mouseleave', handleMouseLeave);
+                this.canvas.addEventListener('touchstart', handleTouchStart);
+                this.canvas.addEventListener('touchend', handleTouchEnd);
+                this.cleanup = () => {
+                    window.removeEventListener('resize', handleResize);
+                    this.canvas.removeEventListener('mousemove', handleMouseMove);
+                    this.canvas.removeEventListener('touchmove', handleTouchMove);
+                    this.canvas.removeEventListener('mouseleave', handleMouseLeave);
+                    this.canvas.removeEventListener('touchstart', handleTouchStart);
+                    this.canvas.removeEventListener('touchend', handleTouchEnd);
+                    if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); }
+                };
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            new ParticleSystem();
+        });
+    </script>
+</body>
+
+</html>
